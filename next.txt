@@ -1,0 +1,135 @@
+  1. Model（定義數據形狀）
+
+  models/products.ts
+
+  export interface Product {
+      id: number;
+      name: string;
+      description: string;
+      price: number;           // cents 定 dollars？要決定
+      stock: number;
+      image_url: string | null;
+      category: string;
+      is_active: boolean;
+      created_at: Date;
+      updated_at: Date;
+  }
+
+  export interface CreateProductInput {
+      name: string;
+      description: string;
+      price: number;
+      stock: number;
+      image_url?: string;
+      category: string;
+  }
+
+  export interface UpdateProductInput {
+      name?: string;
+      description?: string;
+      price?: number;
+      stock?: number;
+      image_url?: string;
+      category?: string;
+      is_active?: boolean;
+  }
+
+  export interface ProductResponse {
+      id: number;
+      name: string;
+      description: string;
+      price: number;
+      stock: number;
+      image_url: string | null;
+      category: string;
+  }
+
+  2. Migration（DB schema）
+
+  migrations/003_products.sql
+
+  CREATE TABLE products (
+      id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name VARCHAR(128) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price INT NOT NULL CHECK (price >= 0),      -- store in cents
+      stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      image_url VARCHAR(512),
+      category VARCHAR(64) NOT NULL,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX idx_products_category ON products(category);
+  CREATE INDEX idx_products_is_active ON products(is_active);
+
+  3. Repository
+
+  repositories/productRepository.ts
+
+  Methods: findAll, findById, findByCategory, create, update, delete (soft-delete by setting is_active = false)
+
+  4. Service
+
+  services/productService.ts
+
+  Business logic: validate price > 0, validate stock >= 0, prevent duplicate product name, etc.
+
+  5. Controller + Routes
+
+  controllers/productController.ts
+  routes/products.ts          → mount on app.ts: app.use('/products', productRouter)
+
+  ---
+  API Endpoints 設計建議
+
+  ┌────────┬───────────────┬────────────┬──────────────────────────────────────────────────────────┐
+  │ Method │      URL      │    Auth    │                           用途                           │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ GET    │ /products     │ No         │ List all active products（support ?category=, ?search=） │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ GET    │ /products/:id │ No         │ Get single product                                       │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ POST   │ /products     │ Admin only │ Create product                                           │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ PUT    │ /products/:id │ Admin only │ Update product                                           │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ PATCH  │ /products/:id │ Admin only │ Partial update                                           │
+  ├────────┼───────────────┼────────────┼──────────────────────────────────────────────────────────┤
+  │ DELETE │ /products/:id │ Admin only │ Soft-delete product                                      │
+  └────────┴───────────────┴────────────┴──────────────────────────────────────────────────────────┘
+
+  ▎ 留意：Create/Update/Delete 需要 admin role。你而家 user role 只得 'customer'，你需要加一個 admin authorization middleware（check req.jwtPayload.role === 'admin'）。
+
+  ---
+  呢個 Phase 會學到嘅新概念
+
+  ┌───────────────────────────────────────┬──────────────────────────────────────────────────┐
+  │                 概念                  │                    喺邊度用到                    │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Public endpoint vs Protected endpoint │ GET products 唔使 auth，POST/PUT/DELETE 要       │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Role-based access control（RBAC）     │ Admin middleware check role === 'admin'          │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Pagination                            │ GET /products?page=1&limit=20                    │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Search / Filter                       │ GET /products?category=electronics&search=phone  │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Partial update                        │ PATCH /products/:id 淨係 update 部分 fields      │
+  ├───────────────────────────────────────┼──────────────────────────────────────────────────┤
+  │ Soft delete                           │ DELETE 唔真係 delete，只係 set is_active = false │
+  └───────────────────────────────────────┴──────────────────────────────────────────────────┘
+
+  ---
+  建議實行次序
+
+  1. 寫 migration → run 咗佢，確保 DB 有 table
+  2. 寫 model → products.ts 定義晒所有 interface
+  3. 寫 repository → CRUD methods，對住 DB 寫 query
+  4. 寫 service → 商業邏輯，用 repository
+  5. 寫 controller + route → HTTP layer
+  6. 加 admin middleware → 保護 create/update/delete
+  7. 手動 test 晒所有 endpoints → update test.http
+
+  想我幫你開始 implement Product module 嗎？我可以逐個 file 同你寫。

@@ -1,0 +1,21 @@
+POST http://localhost:3000/users/register
+content-type: application/json
+
+{
+    "email": "test_5@gmail.com",
+    "userName": "Tom",
+    "password": 123
+}
+###
+
+POST http://localhost:3000/users/login
+content-type: application/json
+
+{
+    "email": "test_5@gmail.com",
+    "password": "123"
+}
+###
+
+GET http://localhost:3000/users/profile/10
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMCIsImVtYWlsIjoidGVzdF81QGdtYWlsLmNvbSIsInJvbGUiOiJjdXN0b21lciIsImlhdCI6MTc4NTIyNDA0MywiZXhwIjoxNzg1MjI0MDczfQ.WGXUhNaoKFBV9MjQfTnvkXMRNwzl8kLkRYuQxEPtRO0

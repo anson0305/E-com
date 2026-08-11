@@ -1,5 +1,8 @@
 # E-commerce API
 
+This project is a learning project from: https://roadmap.sh/projects/ecommerce-api
+
+The tech stack is as follows:
 Express + TypeScript + PostgreSQL backend learning project. It includes JWT authentication, products, categories, carts, and a Stripe test-mode payment flow.
 
 ## Payment design

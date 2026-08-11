@@ -1,6 +1,7 @@
 import { productRepository } from "../repositories/productRepository.js";
 import { categoryService, CategoryNotFoundError } from "./categoryService.js";
-import { CreateProductInput, ProductResponse, UpdateProductInput } from "../models/products.js";
+import { PaginatedProductResponse, ProductResponse } from "../models/products.js";
+import type { CreateProductBody, ListProductsQuery, UpdateProductBody } from '../schemas/productSchemas.js';
 
 export class UnknownProductID extends Error {
     constructor() {
@@ -32,6 +33,10 @@ export class ProductService {
     async listAllProduct(): Promise<ProductResponse[]> {
         const rows = await this.productRepo.findall();
         return rows ?? [];
+    }
+
+    async listProducts(query: ListProductsQuery): Promise<PaginatedProductResponse> {
+        return this.productRepo.findPage(query);
     }
 
     async findById(id: number): Promise<ProductResponse> {
@@ -86,12 +91,12 @@ export class ProductService {
         }
     }
 
-    async createProduct(input: CreateProductInput): Promise<ProductResponse> {
+    async createProduct(input: CreateProductBody): Promise<ProductResponse> {
         const product = await this.productRepo.create(input);
         return product;
     }
 
-    async updateProduct(id: number, product: UpdateProductInput) {
+    async updateProduct(id: number, product: UpdateProductBody) {
         const updated = await this.productRepo.update(id, product);
         if (!updated) {
             throw new UnknownProductID();

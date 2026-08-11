@@ -8,12 +8,6 @@ export interface User {
     updated_at: Date;
 }
 
-export interface CreateUserInput {
-    email: string;
-    userName: string;
-    password: string;
-}
-
 export interface UserResponse {
     id: number;
     name: string;

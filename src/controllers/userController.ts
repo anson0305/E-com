@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
+import type { ChangeRoleBody, LoginBody, RegisterBody } from '../schemas/userSchemas.js';
 import { userService, DuplicateError, LoginError, UserNotFoundError, roleDoesNotExist } from '../services/userServices.js';
 import { genJwtAccessToken, genJwtRefreshToken, verifyRefreshToken, type UserPayload } from '../services/JWT.js';
 
-export async function register(req: Request, res: Response) {
+export async function register(req: Request<{}, unknown, RegisterBody>, res: Response) {
     try {
         const { email, userName, password } = req.body;
 
-        // Basic validation（將來換 Zod middleware）
         if (!email || !userName || !password) {
             res.status(400).json({
                 success: false,
@@ -15,6 +15,7 @@ export async function register(req: Request, res: Response) {
             return;
         }
 
+        // Basic validation（將來換 Zod middleware）
         const result = await userService.register({ email, userName, password });
 
         res.status(201).json({ success: true, data: result });
@@ -28,7 +29,7 @@ export async function register(req: Request, res: Response) {
     }
 }
 
-export async function login(req: Request, res: Response) {
+export async function login(req: Request<{}, unknown, LoginBody>, res: Response) {
     try {
         const { email, password } = req.body;
 
@@ -39,6 +40,7 @@ export async function login(req: Request, res: Response) {
             });
             return;
         }
+
         const { user, access_token, refresh_token } = await userService.login(email, password);
 
         res.cookie('refresh_token', refresh_token, {
@@ -119,7 +121,7 @@ export async function listUsers(req: Request, res: Response) {
     }
 }
 
-export async function removeUser(req: Request, res: Response) {
+export async function removeUser(req: Request<{ id: string }>, res: Response) {
     try {
         const result = await userService.deleteUser(Number.parseInt(req.params.id as string));
         if (result) {
@@ -137,18 +139,18 @@ export async function removeUser(req: Request, res: Response) {
     }
 }
 
-export async function changeRole(req: Request, res: Response) {
+export async function changeRole(
+    req: Request<{ id: string }, unknown, ChangeRoleBody>,
+    res: Response,
+) {
     const newRole = req.body.role;
     try {
         if (!newRole) {
             res.status(400).json({ success: false, error: 'role is required' });
             return;
         }
+
         const id = req.params.id;
-        if (!id) {
-            res.status(400).json({ success: false, error: 'id is required' });
-            return;
-        }
         const updatedUser = await userService.updateUserRole(Number.parseInt(id as string), newRole);
         if (updatedUser) {
             res.status(200).json({success: true, data: updatedUser});

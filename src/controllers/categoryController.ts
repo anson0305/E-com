@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { categoryService, CategoryNotFoundError, CategoryParentError } from '../services/categoryService.js';
+import type { CreateCategoryBody } from '../schemas/categorySchemas.js';
 
 export async function listCategories(_req: Request, res: Response) {
     try {
@@ -11,7 +12,7 @@ export async function listCategories(_req: Request, res: Response) {
     }
 }
 
-export async function getCategory(req: Request, res: Response) {
+export async function getCategory(req: Request<{ id: string }>, res: Response) {
     try {
         const id = Number.parseInt(req.params.id as string);
         if (!id) {
@@ -31,7 +32,7 @@ export async function getCategory(req: Request, res: Response) {
     }
 }
 
-export async function createCategory(req: Request, res: Response) {
+export async function createCategory(req: Request<{}, unknown, CreateCategoryBody>, res: Response) {
     try {
         const { name, parent_id } = req.body;
 

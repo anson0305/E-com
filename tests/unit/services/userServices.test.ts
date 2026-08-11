@@ -19,7 +19,8 @@ import {
 } from '../../../src/services/userServices.js';
 import { hashPwd } from '../../../src/services/JWT.js';
 import { mockRes, mockReq, mockNext } from '../../setup.js';
-import type { User, CreateUserInput } from '../../../src/models/users.js';
+import type { User } from '../../../src/models/users.js';
+import type { RegisterBody } from '../../../src/schemas/userSchemas.js';
 
 // ---------------------------------------------------------------------------
 // Mock repository – we only mock the data-access layer.
@@ -71,7 +72,7 @@ describe('UserService', () => {
     // -- register -----------------------------------------------------------
 
     describe('register()', () => {
-        const input: CreateUserInput = {
+        const input: RegisterBody = {
             email: 'new@example.com',
             userName: 'New User',
             password: 'secret123',

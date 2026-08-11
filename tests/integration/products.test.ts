@@ -165,7 +165,11 @@ describe('Products API -- Integration', () => {
             const res = await request.get('/products');
 
             expect(res.status).toBe(200);
-            expect(res.body).toEqual({ success: true, data: [] });
+            expect(res.body).toEqual({
+                success: true,
+                data: [],
+                pagination: { page: 1, limit: 20, total: 0, total_pages: 0 },
+            });
         });
 
         it('returns 200 with products when seeded', async () => {
@@ -180,13 +184,61 @@ describe('Products API -- Integration', () => {
                 .set('Authorization', `Bearer ${adminToken}`)
                 .send({ name: 'Beta', price: 20, stock: 3, category_id: 1, description: 'Second' });
 
-            const res = await request.get('/products');
+            const res = await request.get('/products').query({ sort: 'name', order: 'asc' });
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(res.body.data).toHaveLength(2);
+            expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 2, total_pages: 1 });
             expect(res.body.data[0]).toMatchObject({ name: 'Alpha', price: 10, stock: 5 });
             expect(res.body.data[1]).toMatchObject({ name: 'Beta', price: 20, stock: 3 });
+        });
+
+        it('paginates, sorts, and filters products in the database query', async () => {
+            await request
+                .post('/products')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ name: 'Alpha', price: 10, stock: 5, category_id: 2 });
+            await request
+                .post('/products')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ name: 'Beta', price: 20, stock: 3, category_id: 2 });
+            await request
+                .post('/products')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ name: 'Book', price: 5, stock: 8, category_id: 3 });
+
+            const page = await request.get('/products').query({
+                category_id: 2,
+                sort: 'price',
+                order: 'desc',
+                page: 2,
+                limit: 1,
+            });
+
+            expect(page.status).toBe(200);
+            expect(page.body.data).toEqual([
+                expect.objectContaining({ name: 'Alpha', price: 10 }),
+            ]);
+            expect(page.body.pagination).toEqual({ page: 2, limit: 1, total: 2, total_pages: 2 });
+
+            const byName = await request.get('/products').query({ name: 'alpha' });
+            expect(byName.status).toBe(200);
+            expect(byName.body.data).toEqual([
+                expect.objectContaining({ name: 'Alpha' }),
+            ]);
+        });
+
+        it.each([
+            { page: 0 },
+            { limit: 101 },
+            { sort: 'unknown' },
+            { category_id: 'not-a-number' },
+        ])('rejects invalid list query: %o', async query => {
+            const res = await request.get('/products').query(query);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
         });
     });
 
@@ -286,10 +338,23 @@ describe('Products API -- Integration', () => {
             const res = await request.get('/products/search');
 
             expect(res.status).toBe(400);
-            expect(res.body).toEqual({
+            expect(res.body).toMatchObject({
                 success: false,
-                error: 'no query parameter is provided',
+                error: 'request validation failed',
             });
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: '' }),
+            ]);
+        });
+
+        it.each([
+            { id: 'not-a-number' },
+            { id: '1', name: 'Widget' },
+        ])('returns 400 for invalid search query: %o', async query => {
+            const res = await request.get('/products/search').query(query);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
         });
     });
 
@@ -329,10 +394,31 @@ describe('Products API -- Integration', () => {
                 .send({ description: 'No name, price, stock, or category_id' });
 
             expect(res.status).toBe(400);
-            expect(res.body).toEqual({
+            expect(res.body).toMatchObject({
                 success: false,
-                error: 'name, price, stock, and category_id are required',
+                error: 'request validation failed',
             });
+            expect(res.body.details).toEqual(expect.arrayContaining([
+                expect.objectContaining({ path: 'name' }),
+                expect.objectContaining({ path: 'price' }),
+                expect.objectContaining({ path: 'stock' }),
+                expect.objectContaining({ path: 'category_id' }),
+            ]));
+        });
+
+        it.each([
+            { name: '', price: 10, stock: 1, category_id: 2 },
+            { name: 'Invalid Price', price: -1, stock: 1, category_id: 2 },
+            { name: 'Invalid Stock', price: 10, stock: 1.5, category_id: 2 },
+            { name: 'Extra Field', price: 10, stock: 1, category_id: 2, role: 'admin' },
+        ])('returns 400 for invalid product body: %o', async body => {
+            const res = await request
+                .post('/products')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send(body);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
         });
 
         it('returns 403 when customer tries to create a product', async () => {
@@ -405,10 +491,29 @@ describe('Products API -- Integration', () => {
                 .send({ name: 'Nope' });
 
             expect(res.status).toBe(400);
-            expect(res.body).toEqual({
+            expect(res.body).toMatchObject({
                 success: false,
-                error: 'valid product id is required',
+                error: 'request validation failed',
             });
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: 'id' }),
+            ]);
+        });
+
+        it('returns 400 when update body is empty or invalid', async () => {
+            const id = await seedProduct();
+
+            const empty = await request
+                .put(`/products/${id}`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({});
+            expect(empty.status).toBe(400);
+
+            const invalid = await request
+                .put(`/products/${id}`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ stock: -1 });
+            expect(invalid.status).toBe(400);
         });
 
         it('returns 401 when no auth token is provided', async () => {
@@ -462,10 +567,13 @@ describe('Products API -- Integration', () => {
                 .set('Authorization', `Bearer ${adminToken}`);
 
             expect(res.status).toBe(400);
-            expect(res.body).toEqual({
+            expect(res.body).toMatchObject({
                 success: false,
-                error: 'valid product id is required',
+                error: 'request validation failed',
             });
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: 'id' }),
+            ]);
         });
 
         it('returns 401 when no auth token is provided', async () => {

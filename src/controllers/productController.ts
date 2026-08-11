@@ -1,6 +1,13 @@
 import type { Request, Response } from 'express';
 import { productService, UnknownProductID, NoSuchProduct } from '../services/productService.js';
 import { CategoryNotFoundError } from '../services/categoryService.js';
+import {
+    listProductsQuerySchema,
+    type CreateProductBody,
+    type ListProductsQuery,
+    type SearchProductsQuery,
+    type UpdateProductBody,
+} from '../schemas/productSchemas.js';
 
 export class QueryIsMissing extends Error {
     constructor() {
@@ -9,17 +16,20 @@ export class QueryIsMissing extends Error {
     }
 }
 
-export async function searchProduct(req: Request, res: Response) {
+export async function searchProduct(
+    _req: Request<{}, unknown, unknown, SearchProductsQuery>,
+    res: Response,
+) {
     try {
-        const { id, category, name } = req.query;
-        if (id) {
-            const product = await productService.findById(Number.parseInt(id as string));
+        const { id, category, name } = (res.locals?.validatedQuery ?? _req.query) as SearchProductsQuery;
+        if (id !== undefined) {
+            const product = await productService.findById(Number.parseInt(id));
             res.json({ success: true, data: product });
-        } else if (category) {
-            const productList = await productService.findByCategory(category as string);
+        } else if (category !== undefined) {
+            const productList = await productService.findByCategory(category);
             res.json({ success: true, data: productList });
-        } else if (name) {
-            const product = await productService.findByName(name as string);
+        } else if (name !== undefined) {
+            const product = await productService.findByName(name);
             res.json({ success: true, data: product });
         } else {
             throw new QueryIsMissing();
@@ -38,17 +48,30 @@ export async function searchProduct(req: Request, res: Response) {
     }
 }
 
-export async function findAllProduct(_req: Request, res: Response) {
+export async function findAllProduct(
+    req: Request,
+    res: Response,
+) {
     try {
-        const allProduct = await productService.listAllProduct();
-        res.json({ success: true, data: allProduct });
+        const query = (res.locals?.validatedQuery ?? listProductsQuerySchema.parse(req.query)) as ListProductsQuery;
+        const result = await productService.listProducts(query);
+        res.json({
+            success: true,
+            data: result.items,
+            pagination: {
+                page: query.page,
+                limit: query.limit,
+                total: result.total,
+                total_pages: Math.ceil(result.total / query.limit),
+            },
+        });
     } catch (error) {
         console.error('findAllProduct error:', error);
         res.status(500).json({ success: false, error: "unexpected error" });
     }
 }
 
-export async function createProduct(req: Request, res: Response) {
+export async function createProduct(req: Request<{}, unknown, CreateProductBody>, res: Response) {
     try {
         const { name, description, price, stock, image_url, category_id } = req.body;
 
@@ -76,7 +99,10 @@ export async function createProduct(req: Request, res: Response) {
     }
 }
 
-export async function updateProduct(req: Request, res: Response) {
+export async function updateProduct(
+    req: Request<{ id: string }, unknown, UpdateProductBody>,
+    res: Response,
+) {
     try {
         const id = Number.parseInt(req.params.id as string);
         if (!id) {
@@ -96,7 +122,7 @@ export async function updateProduct(req: Request, res: Response) {
     }
 }
 
-export async function deleteProduct(req: Request, res: Response) {
+export async function deleteProduct(req: Request<{ id: string }>, res: Response) {
     try {
         const id = Number.parseInt(req.params.id as string);
         if (!id) {

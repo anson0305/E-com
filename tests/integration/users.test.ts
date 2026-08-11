@@ -100,6 +100,18 @@ async function seedAdmin(name: string, email: string): Promise<{ userId: number;
 // ── Tests ─────────────────────────────────────────────────────────────
 
 describe('Users API — Integration', () => {
+    it('sets security headers and rejects JSON bodies over 100kb', async () => {
+        const headers = await request.get('/users/profile');
+        expect(headers.headers['x-content-type-options']).toBe('nosniff');
+
+        const tooLarge = await request
+            .post('/users/login')
+            .send({ email: 'large@example.com', password: 'a'.repeat(101 * 1024) });
+
+        expect(tooLarge.status).toBe(413);
+        expect(tooLarge.body).toEqual({ success: false, error: 'Request body is too large' });
+    });
+
     // 1 ────────────────────────────────────────────────────────────────
     it('POST /users/register → 201 with user data and tokens', async () => {
         const res = await request
@@ -133,6 +145,19 @@ describe('Users API — Integration', () => {
         expect(res.status).toBe(409);
         expect(res.body.success).toBe(false);
         expect(res.body.error).toContain('already registered');
+    });
+
+    it.each([
+        { email: 'not-an-email', userName: 'Valid', password: 'password' },
+        { email: 'valid@example.com', userName: '', password: 'password' },
+        { email: 'valid@example.com', userName: 'Valid', password: '' },
+        { email: 'valid@example.com', userName: 'Valid', password: 'password', role: 'admin' },
+    ])('POST /users/register rejects invalid input: %o', async body => {
+        const res = await request.post('/users/register').send(body);
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('request validation failed');
+        expect(res.body.details).toEqual(expect.any(Array));
     });
 
     // 3 ────────────────────────────────────────────────────────────────
@@ -277,5 +302,26 @@ describe('Users API — Integration', () => {
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
         expect(res.body.data.role).toBe('admin');
+    });
+
+    it('rejects invalid admin user ids and roles', async () => {
+        const { token } = await seedAdmin('AdminValidation', 'admin-validation@ecom.test');
+
+        const invalidId = await request
+            .delete('/users/not-a-number')
+            .set(auth(token));
+        expect(invalidId.status).toBe(400);
+        expect(invalidId.body.details).toEqual([
+            expect.objectContaining({ path: 'id' }),
+        ]);
+
+        const invalidRole = await request
+            .patch('/users/1/role')
+            .set(auth(token))
+            .send({ role: 'superadmin' });
+        expect(invalidRole.status).toBe(400);
+        expect(invalidRole.body.details).toEqual([
+            expect.objectContaining({ path: 'role' }),
+        ]);
     });
 });

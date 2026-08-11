@@ -284,10 +284,32 @@ describe('Cart API -- Integration', () => {
                 .send({});
 
             expect(res.status).toBe(400);
-            expect(res.body).toEqual({
+            expect(res.body).toMatchObject({
                 success: false,
-                error: 'product_id and quantity are required',
+                error: 'request validation failed',
             });
+            expect(res.body.details).toEqual(expect.arrayContaining([
+                expect.objectContaining({ path: 'product_id' }),
+                expect.objectContaining({ path: 'quantity' }),
+            ]));
+        });
+
+        it.each([
+            { product_id: '1', quantity: 1 },
+            { product_id: 1.5, quantity: 1 },
+            { product_id: 1, quantity: 0 },
+            { product_id: 1, quantity: 100 },
+            { product_id: 1, quantity: 1, unexpected: true },
+        ])('returns 400 for invalid body: %o', async body => {
+            const res = await request
+                .post('/cart/items')
+                .set('Authorization', `Bearer ${customerAToken}`)
+                .send(body);
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+            expect(res.body.error).toBe('request validation failed');
+            expect(res.body.details).toEqual(expect.any(Array));
         });
 
         it('returns 401 when no auth token is provided', async () => {
@@ -347,6 +369,34 @@ describe('Cart API -- Integration', () => {
                 .send({});
 
             expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: 'quantity' }),
+            ]);
+        });
+
+        it.each([0, -1, 1.5, 100])('returns 400 when quantity is %s', async quantity => {
+            const itemId = await seedCartItem(customerAToken, 1, 1);
+
+            const res = await request
+                .patch(`/cart/items/${itemId}`)
+                .set('Authorization', `Bearer ${customerAToken}`)
+                .send({ quantity });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
+        });
+
+        it('returns 400 when item id is invalid', async () => {
+            const res = await request
+                .patch('/cart/items/not-a-number')
+                .set('Authorization', `Bearer ${customerAToken}`)
+                .send({ quantity: 1 });
+
+            expect(res.status).toBe(400);
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: 'id' }),
+            ]);
         });
 
         it('returns 401 when no auth token is provided', async () => {
@@ -392,6 +442,18 @@ describe('Cart API -- Integration', () => {
                 success: false,
                 error: 'cart item not found',
             });
+        });
+
+        it('returns 400 when item id is invalid', async () => {
+            const res = await request
+                .delete('/cart/items/0')
+                .set('Authorization', `Bearer ${customerAToken}`);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('request validation failed');
+            expect(res.body.details).toEqual([
+                expect.objectContaining({ path: 'id' }),
+            ]);
         });
 
         it('returns 401 when no auth token is provided', async () => {

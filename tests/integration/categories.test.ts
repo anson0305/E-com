@@ -159,4 +159,29 @@ describe('Category Routes Integration', () => {
 
         expect(res.status).toBe(403);
     });
+
+    it.each([
+        {},
+        { name: '' },
+        { name: 'Invalid Parent', parent_id: 0 },
+        { name: 'Unexpected Field', unexpected: true },
+    ])('POST /categories rejects invalid input: %o', async body => {
+        const res = await request(app)
+            .post('/categories')
+            .set('Authorization', `Bearer ${adminToken()}`)
+            .send(body);
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('request validation failed');
+        expect(res.body.details).toEqual(expect.any(Array));
+    });
+
+    it('GET /categories rejects an invalid id', async () => {
+        const res = await request(app).get('/categories/not-a-number');
+
+        expect(res.status).toBe(400);
+        expect(res.body.details).toEqual([
+            expect.objectContaining({ path: 'id' }),
+        ]);
+    });
 });

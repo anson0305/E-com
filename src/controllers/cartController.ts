@@ -5,6 +5,7 @@ import {
     ProductOutOfStockError,
 } from '../services/cartService.js';
 import { UnknownProductID } from '../services/productService.js';
+import type { AddCartItemBody, UpdateCartItemBody } from '../schemas/cartSchemas.js';
 
 export async function getCart(req: Request, res: Response) {
     try {
@@ -17,22 +18,14 @@ export async function getCart(req: Request, res: Response) {
     }
 }
 
-export async function addItem(req: Request, res: Response) {
+export async function addItem(req: Request<{}, unknown, AddCartItemBody>, res: Response) {
     try {
         const userId = Number(req.jwtPayload!.userId);
         const { product_id, quantity } = req.body;
 
-        if (!product_id || quantity === undefined) {
-            res.status(400).json({
-                success: false,
-                error: 'product_id and quantity are required',
-            });
-            return;
-        }
-
         const cart = await cartService.addItem(userId, {
             product_id,
-            quantity: quantity ?? 1,
+            quantity,
         });
         res.status(201).json({ success: true, data: cart });
     } catch (error) {
@@ -47,19 +40,14 @@ export async function addItem(req: Request, res: Response) {
     }
 }
 
-export async function updateQuantity(req: Request, res: Response) {
+export async function updateQuantity(
+    req: Request<{ id: string }, unknown, UpdateCartItemBody>,
+    res: Response,
+) {
     try {
         const userId = Number(req.jwtPayload!.userId);
         const itemId = Number(req.params.id);
         const { quantity } = req.body;
-
-        if (!itemId || quantity === undefined) {
-            res.status(400).json({
-                success: false,
-                error: 'valid item id and quantity are required',
-            });
-            return;
-        }
 
         const cart = await cartService.updateQuantity(userId, itemId, quantity);
         res.json({ success: true, data: cart });
@@ -73,18 +61,10 @@ export async function updateQuantity(req: Request, res: Response) {
     }
 }
 
-export async function removeItem(req: Request, res: Response) {
+export async function removeItem(req: Request<{ id: string }>, res: Response) {
     try {
         const userId = Number(req.jwtPayload!.userId);
         const itemId = Number(req.params.id);
-
-        if (!itemId) {
-            res.status(400).json({
-                success: false,
-                error: 'valid item id is required',
-            });
-            return;
-        }
 
         const cart = await cartService.removeItem(userId, itemId);
         res.json({ success: true, data: cart });

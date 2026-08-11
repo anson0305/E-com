@@ -1,6 +1,7 @@
 import { userRepository } from '../repositories/userRepository.js';
 import { hashPwd, verifyPwd, genJwtAccessToken, genJwtRefreshToken } from './JWT.js'
-import { CreateUserInput, User, UserResponse} from '../models/users.js';
+import { User, UserResponse} from '../models/users.js';
+import type { RegisterBody } from '../schemas/userSchemas.js';
 
 export class DuplicateError extends Error {
     constructor(email: string) {
@@ -33,7 +34,7 @@ export class roleDoesNotExist extends Error {
 export class UserService {
     constructor(private repo = userRepository) {}  // 可以 inject mock
 
-    async register(input: CreateUserInput): Promise<{
+    async register(input: RegisterBody): Promise<{
         user: UserResponse;
         access_token: string;
         refresh_token: string;

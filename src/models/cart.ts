@@ -26,15 +26,6 @@ export interface CartItemWithProduct {
     product_stock: number;
 }
 
-export interface AddToCartInput {
-    product_id: number;
-    quantity: number;
-}
-
-export interface UpdateCartItemInput {
-    quantity: number;
-}
-
 // --- Response types (what we send back) ---
 
 export interface CartItemResponse {

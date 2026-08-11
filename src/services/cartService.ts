@@ -1,5 +1,6 @@
 import { cartRepository } from '../repositories/cartRepository.js';
-import type { AddToCartInput, CartItemResponse, CartResponse } from '../models/cart.js';
+import type { CartItemResponse, CartResponse } from '../models/cart.js';
+import type { AddCartItemBody } from '../schemas/cartSchemas.js';
 import { productService, UnknownProductID } from './productService.js';
 
 export class CartItemNotFoundError extends Error {
@@ -52,7 +53,7 @@ export class CartService {
         return this.buildCartResponse(userId);
     }
 
-    async addItem(userId: number, input: AddToCartInput): Promise<CartResponse> {
+    async addItem(userId: number, input: AddCartItemBody): Promise<CartResponse> {
         // 1. Validate product exists
         const product = await this.productSvc.findById(input.product_id);
 

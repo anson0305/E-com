@@ -9,7 +9,7 @@ vi.mock('../../../src/services/productService.js', () => ({
     findById: vi.fn(),
     findByCategory: vi.fn(),
     findByName: vi.fn(),
-    listAllProduct: vi.fn(),
+    listProducts: vi.fn(),
     createProduct: vi.fn(),
     updateProduct: vi.fn(),
     deleteProduct: vi.fn(),
@@ -177,12 +177,21 @@ describe('productController', () => {
   describe('findAllProduct', () => {
     it('200 with product list', async () => {
       const list = [sampleProduct, { ...sampleProduct, id: 2, name: 'Gadget' }];
-      svc.listAllProduct.mockResolvedValue(list);
+      svc.listProducts.mockResolvedValue({ items: list, total: list.length });
 
       await findAllProduct(req, res);
 
-      expect(svc.listAllProduct).toHaveBeenCalled();
-      expect(res.json).toHaveBeenCalledWith({ success: true, data: list });
+      expect(svc.listProducts).toHaveBeenCalledWith({
+        page: 1,
+        limit: 20,
+        sort: 'created_at',
+        order: 'desc',
+      });
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: list,
+        pagination: { page: 1, limit: 20, total: list.length, total_pages: 1 },
+      });
     });
   });
 

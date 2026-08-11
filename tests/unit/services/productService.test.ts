@@ -33,10 +33,8 @@ vi.mock('../../../src/services/categoryService.js', async (importOriginal) => {
 // Imports (after mocks so vitest resolves mocked versions)
 // ---------------------------------------------------------------------------
 
-import type {
-    ProductResponse,
-    CreateProductInput,
-} from '../../../src/models/products.js';
+import type { ProductResponse } from '../../../src/models/products.js';
+import type { CreateProductBody } from '../../../src/schemas/productSchemas.js';
 import {
     ProductService,
     UnknownProductID,
@@ -245,7 +243,7 @@ describe('ProductService', () => {
 
     describe('createProduct', () => {
         it('creates and returns new product', async () => {
-            const input: CreateProductInput = {
+            const input: CreateProductBody = {
                 name: 'New Product',
                 description: 'Fresh off the press',
                 price: 1500,

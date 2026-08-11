@@ -8,6 +8,7 @@ import {
     paymentService,
 } from '../services/paymentService.js';
 import { PaymentConfigurationError, getStripeClient, getWebhookSecret } from '../services/stripe.js';
+import type { CheckoutHeaders } from '../schemas/paymentSchemas.js';
 
 function userIdFromRequest(req: Request): number {
     return Number(req.jwtPayload!.userId);
@@ -15,7 +16,10 @@ function userIdFromRequest(req: Request): number {
 
 export async function checkout(req: Request, res: Response) {
     try {
-        const result = await paymentService.checkout(userIdFromRequest(req), req.get('Idempotency-Key') ?? undefined);
+        const { idempotency_key } = (res.locals?.validatedHeaders ?? {
+            idempotency_key: req.get('Idempotency-Key') ?? undefined,
+        }) as CheckoutHeaders;
+        const result = await paymentService.checkout(userIdFromRequest(req), idempotency_key);
         res.status(201).json({ success: true, data: result });
     } catch (error) {
         if (error instanceof CartIsEmptyError) {
@@ -33,7 +37,7 @@ export async function checkout(req: Request, res: Response) {
     }
 }
 
-export async function getOrder(req: Request, res: Response) {
+export async function getOrder(req: Request<{ id: string }>, res: Response) {
     try {
         const order = await paymentService.getOrder(userIdFromRequest(req), Number(req.params.id));
         res.json({ success: true, data: order });
@@ -47,7 +51,7 @@ export async function getOrder(req: Request, res: Response) {
     }
 }
 
-export async function cancelOrder(req: Request, res: Response) {
+export async function cancelOrder(req: Request<{ id: string }>, res: Response) {
     try {
         await paymentService.cancelOrder(userIdFromRequest(req), Number(req.params.id));
         res.json({ success: true, data: { message: 'payment cancelled and inventory released' } });

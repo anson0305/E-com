@@ -5,11 +5,14 @@ import userRouter from './routes/users.js';
 import cartRouter from './routes/carts.js';
 import productRouter from './routes/products.js';
 import categoryRouter from './routes/categories.js';
+import paymentRouter from './routes/payments.js';
 
 const app = express();
 
 // --- Global middleware ---
 app.use(cors());
+// Stripe verifies the exact bytes it sends. This must run before express.json().
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(cookieParser());
 app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -22,6 +25,7 @@ app.use('/cart', cartRouter);
 app.use('/users', userRouter);
 app.use('/products', productRouter);
 app.use('/categories', categoryRouter);
+app.use('/payments', paymentRouter);
 
 
 // --- 404 handler ---
